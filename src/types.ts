@@ -1,0 +1,43 @@
+
+export const Categories = {
+  TOP: 'Superior',
+  BOTTOM: 'Inferior',
+  SHOES: 'Calzado',
+  ACCESSORY: 'Accesorio'
+} as const;
+
+export type Category = (typeof Categories)[keyof typeof Categories];
+
+export interface ClothingItem {
+  id: string;          // UUID or timestamp-based unique ID
+  name: string;        // e.g., "Camisa blanca Oxford"
+  category: Category;  // TOP | BOTTOM | SHOES | ACCESSORY
+  color: string;       // e.g., "blanco", "azul marino"
+  image: string;       // base64 data URL or file path
+  tags: string[];      // e.g., ["formal", "verano", "casual"]
+}
+
+export interface WeatherData {
+  temp: number;
+  condition: string;
+  city: string;
+}
+
+export interface DailyOutfit {
+  day: string;                // e.g., "Lunes"
+  date?: string;              // e.g., "2026-02-19" (ISO YYYY-MM-DD)
+  items: ClothingItem[];      // selected clothing items
+  event?: string;             // e.g., "Reunión de trabajo"
+  notes?: string;             // user notes
+
+}
+
+export type WeeklyPlan = Record<string, DailyOutfit>;
+
+export interface UserProfile {
+  name?: string;
+  sex?: string;
+  age?: number;
+  weight?: number;    // kg
+  height?: number;    // cm
+}

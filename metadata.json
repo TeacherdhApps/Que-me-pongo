@@ -1,0 +1,9 @@
+
+{
+  "name": "¿Qué me pongo?",
+  "description": "Curaduría personal de moda inteligente. Organiza tu armario y recibe recomendaciones personalizadas.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

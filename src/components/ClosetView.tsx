@@ -1,0 +1,109 @@
+
+import { useState } from 'react';
+import { useWardrobe } from '../hooks/useWardrobe';
+import { AddItemModal } from './AddItemModal';
+import { Categories } from '../types';
+import type { Category } from '../types';
+
+const categoryLabels: { key: Category; icon: string }[] = [
+    { key: Categories.TOP, icon: 'fa-shirt' },
+    { key: Categories.BOTTOM, icon: 'fa-socks' },
+    { key: Categories.SHOES, icon: 'fa-shoe-prints' },
+    { key: Categories.ACCESSORY, icon: 'fa-gem' },
+];
+
+export function ClosetView() {
+    const { wardrobe, add, remove } = useWardrobe();
+    const [showModal, setShowModal] = useState(false);
+    const [openSection, setOpenSection] = useState<Category | null>(null);
+
+    const toggleSection = (cat: Category) => {
+        setOpenSection(prev => prev === cat ? null : cat);
+    };
+
+    return (
+        <div className="animate-fade">
+            <div className="flex justify-between items-end mb-16">
+                <div>
+                    <h2 className="text-4xl font-black uppercase tracking-tighter">Mi Colección</h2>
+                    <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mt-2">
+                        {wardrobe.length} Piezas totales
+                    </p>
+                </div>
+                <button
+                    onClick={() => setShowModal(true)}
+                    className="w-14 h-14 bg-black text-white rounded-full flex items-center justify-center hover:rotate-90 transition-transform shadow-lg hover:shadow-xl"
+                >
+                    <i className="fas fa-plus"></i>
+                </button>
+            </div>
+
+            <div className="space-y-4">
+                {categoryLabels.map(({ key, icon }) => {
+                    const items = wardrobe.filter(i => i.category === key);
+                    const isOpen = openSection === key;
+
+                    return (
+                        <div key={key}>
+                            <button
+                                onClick={() => toggleSection(key)}
+                                className={`w-full flex items-center justify-between px-8 py-6 rounded-[2rem] transition-all ${isOpen ? 'bg-black text-white' : 'bg-zinc-50 hover:bg-zinc-100 text-black'}`}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <i className={`fas ${icon} text-sm ${isOpen ? 'text-white' : 'text-zinc-400'}`}></i>
+                                    <span className="text-[11px] font-black uppercase tracking-[0.2em]">{key}</span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <span className={`text-[10px] font-bold ${isOpen ? 'text-zinc-400' : 'text-zinc-300'}`}>
+                                        {items.length} {items.length === 1 ? 'pieza' : 'piezas'}
+                                    </span>
+                                    <i className={`fas fa-chevron-down text-[8px] transition-transform ${isOpen ? 'rotate-180' : ''}`}></i>
+                                </div>
+                            </button>
+
+                            {isOpen && (
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-y-10 gap-x-6 pt-8 pb-4 px-2 animate-fade">
+                                    {items.length === 0 ? (
+                                        <p className="col-span-full text-center text-zinc-300 text-xs font-bold uppercase tracking-widest py-8">
+                                            Sin prendas en esta categoría
+                                        </p>
+                                    ) : (
+                                        items.map(item => (
+                                            <div key={item.id} className="clothing-card group cursor-pointer">
+                                                <div className="aspect-[3/4] bg-zinc-50 rounded-[2.5rem] overflow-hidden relative border border-zinc-100 shadow-sm transition-all group-hover:shadow-md">
+                                                    <img src={item.image} className="w-full h-full object-cover" />
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); remove(item.id); }}
+                                                        className="absolute top-4 right-4 w-8 h-8 bg-white/80 backdrop-blur rounded-full opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center hover:bg-red-50 hover:text-red-500"
+                                                    >
+                                                        <i className="fas fa-times text-[10px]"></i>
+                                                    </button>
+                                                </div>
+                                                <div className="mt-4 px-2">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest truncate">{item.name}</p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {wardrobe.length === 0 && (
+                <div className="text-center py-20 opacity-50">
+                    <p className="text-zinc-300 font-bold uppercase tracking-widest">Tu armario está vacío</p>
+                </div>
+            )}
+
+            {showModal && (
+                <AddItemModal
+                    onClose={() => setShowModal(false)}
+                    onAdd={add}
+                />
+            )}
+        </div>
+    );
+}
