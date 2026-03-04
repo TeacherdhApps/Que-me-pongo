@@ -1,11 +1,14 @@
 
 import { useState, useRef } from 'react';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { useWardrobe } from '../hooks/useWardrobe';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { exportAllData, importAllData } from '../lib/wardrobeStorage';
+import { supabase } from '../lib/supabase';
 
 export function SettingsView() {
     const { profile, update } = useUserProfile();
+    const { wardrobe } = useWardrobe();
     const { isInstallable, installApp } = usePWAInstall();
     const [importStatus, setImportStatus] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -126,6 +129,61 @@ export function SettingsView() {
                             className="bg-white border border-zinc-200 rounded-2xl px-6 py-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black transition-all"
                         />
                     </div>
+                </div>
+            </div>
+
+            {/* Plan & Storage */}
+            <div className="bg-zinc-50 rounded-[3rem] p-10 border border-zinc-100 mb-8 overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-8">
+                    <i className={`fas ${profile.isPro ? 'fa-gem text-amber-500' : 'fa-seedling text-zinc-300'} text-4xl opacity-20`}></i>
+                </div>
+
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-8">Plan y Almacenamiento</h3>
+
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                            <span className="text-2xl font-black uppercase tracking-tighter">
+                                {profile.isPro ? 'Plan Premium' : 'Plan Gratuito'}
+                            </span>
+                            {profile.isPro && (
+                                <span className="bg-amber-100 text-amber-700 text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-widest">PRO</span>
+                            )}
+                        </div>
+                        <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">
+                            {wardrobe.length} de {profile.isPro ? '∞' : '50'} prendas utilizadas
+                        </p>
+                    </div>
+
+                    {!profile.isPro ? (
+                        <button
+                            className="bg-black text-white px-8 py-4 rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-lg"
+                            onClick={async () => {
+                                const { data: { user } } = await supabase.auth.getUser();
+                                if (!user) {
+                                    alert('Por favor inicia sesión para realizar la compra.');
+                                    return;
+                                }
+                                // Lemon Squeezy Checkout URL with custom user_id data
+                                // IMPORTANT: Replace with your real Checkout Link from LS Dashboard
+                                const LS_CHECKOUT_URL = `https://que-me-pongo.lemonsqueezy.com/checkout/buy/your-product-id?checkout[custom][user_id]=${user.id}`;
+                                window.open(LS_CHECKOUT_URL, '_blank');
+                            }}
+                        >
+                            Pasar a Pro
+                        </button>
+                    ) : (
+                        <div className="bg-zinc-100 px-6 py-4 rounded-full text-zinc-400 font-black text-[10px] uppercase tracking-widest">
+                            Suscripción Activa
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-10 h-3 w-full bg-zinc-100 rounded-full overflow-hidden">
+                    <div
+                        className={`h-full transition-all duration-1000 ${profile.isPro ? 'bg-amber-500' : (wardrobe.length / 50 > 0.9 ? 'bg-red-500' : 'bg-black')}`}
+                        style={{ width: profile.isPro ? '100%' : `${Math.min((wardrobe.length / 50) * 100, 100)}%` }}
+                    ></div>
                 </div>
             </div>
 

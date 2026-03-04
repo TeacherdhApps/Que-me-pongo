@@ -40,4 +40,5 @@ export interface UserProfile {
   age?: number;
   weight?: number;    // kg
   height?: number;    // cm
+  isPro?: boolean;
 }

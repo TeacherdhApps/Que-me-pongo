@@ -1,12 +1,75 @@
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useWeeklyPlan } from '../hooks/useWardrobe';
 import { OutfitEditor } from './OutfitEditor';
+import type { ClothingItem } from '../types';
+
+interface DayInfo {
+    name: string;
+    date: string;
+    displayDate: string;
+}
+
+const PlannerDayCard = memo(({ day, items, onEdit }: { day: DayInfo; items: ClothingItem[]; onEdit: (day: DayInfo) => void }) => {
+    return (
+        <div className="bg-zinc-50 rounded-[2rem] p-8 flex items-center justify-between group hover:bg-zinc-100 transition-colors animate-fade">
+            <div className="flex items-center gap-12">
+                <div className="w-24 flex flex-col">
+                    <span className="text-[10px] font-black uppercase tracking-widest">{day.name}</span>
+                    <span className="text-[10px] font-bold text-zinc-700 mt-1">{day.displayDate}</span>
+                </div>
+                <div className="flex -space-x-4">
+                    {items.map(itm => (
+                        <img
+                            key={itm.id}
+                            src={itm.image}
+                            loading="lazy"
+                            className="w-12 h-12 rounded-full border-2 border-white object-cover"
+                            alt={itm.name}
+                        />
+                    ))}
+                    {items.length === 0 && (
+                        <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Outfit vacío</span>
+                    )}
+                </div>
+            </div>
+            <button
+                onClick={() => onEdit(day)}
+                className="text-[10px] font-black uppercase tracking-widest bg-white px-6 py-3 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+                Editar
+            </button>
+        </div>
+    );
+});
+
+PlannerDayCard.displayName = 'PlannerDayCard';
+
+const WeeklySkeleton = () => (
+    <div className="grid gap-4 animate-pulse">
+        {[1, 2, 3, 4, 5, 6, 7].map(i => (
+            <div key={i} className="bg-zinc-50 rounded-[2rem] p-8 flex items-center justify-between">
+                <div className="flex items-center gap-12">
+                    <div className="w-24 space-y-2">
+                        <div className="h-2 w-16 bg-zinc-200 rounded"></div>
+                        <div className="h-2 w-12 bg-zinc-100 rounded"></div>
+                    </div>
+                    <div className="flex -space-x-4">
+                        {[1, 2, 3].map(j => (
+                            <div key={j} className="w-12 h-12 rounded-full bg-zinc-200 border-2 border-white"></div>
+                        ))}
+                    </div>
+                </div>
+                <div className="w-20 h-8 bg-zinc-200 rounded-full"></div>
+            </div>
+        ))}
+    </div>
+);
 
 export function WeeklyPlanner({ onViewChange }: { onViewChange: (view: 'week' | 'month') => void }) {
     const { plan, isLoading, updateDay } = useWeeklyPlan();
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [editingDay, setEditingDay] = useState<{ name: string, date: string } | null>(null);
+    const [editingDay, setEditingDay] = useState<DayInfo | null>(null);
 
     const formatDateKey = (date: Date) => {
         const y = date.getFullYear();
@@ -41,15 +104,6 @@ export function WeeklyPlanner({ onViewChange }: { onViewChange: (view: 'week' | 
         nextDate.setDate(currentDate.getDate() + (offset * 7));
         setCurrentDate(nextDate);
     };
-
-    if (isLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center py-40 gap-4 animate-pulse">
-                <i className="fas fa-circle-notch fa-spin text-4xl text-black"></i>
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Cargando Plan...</p>
-            </div>
-        );
-    }
 
     return (
         <div className="animate-fade">
@@ -87,32 +141,20 @@ export function WeeklyPlanner({ onViewChange }: { onViewChange: (view: 'week' | 
                 </div>
             </div>
 
-            <div className="grid gap-4">
-                {weekDays.map(day => (
-                    <div key={day.date} className="bg-zinc-50 rounded-[2rem] p-8 flex items-center justify-between group hover:bg-zinc-100 transition-colors">
-                        <div className="flex items-center gap-12">
-                            <div className="w-24 flex flex-col">
-                                <span className="text-[10px] font-black uppercase tracking-widest">{day.name}</span>
-                                <span className="text-[10px] font-bold text-zinc-700 mt-1">{day.displayDate}</span>
-                            </div>
-                            <div className="flex -space-x-4">
-                                {(plan[day.date]?.items || []).map(itm => (
-                                    <img key={itm.id} src={itm.image} loading="lazy" className="w-12 h-12 rounded-full border-2 border-white object-cover" alt={itm.name} />
-                                ))}
-                                {(!plan[day.date] || plan[day.date].items.length === 0) && (
-                                    <span className="text-[10px] font-bold text-zinc-300 uppercase tracking-widest">Outfit vacío</span>
-                                )}
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setEditingDay(day)}
-                            className="text-[10px] font-black uppercase tracking-widest bg-white px-6 py-3 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                            Editar
-                        </button>
-                    </div>
-                ))}
-            </div>
+            {isLoading ? (
+                <WeeklySkeleton />
+            ) : (
+                <div className="grid gap-4">
+                    {weekDays.map(day => (
+                        <PlannerDayCard
+                            key={day.date}
+                            day={day}
+                            items={plan[day.date]?.items || []}
+                            onEdit={setEditingDay}
+                        />
+                    ))}
+                </div>
+            )}
 
             {editingDay && (
                 <OutfitEditor

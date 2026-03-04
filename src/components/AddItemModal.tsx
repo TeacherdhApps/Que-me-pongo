@@ -1,9 +1,10 @@
-
 import { useState, useRef, useCallback } from 'react';
 import { Categories, type Category, type ClothingItem } from '../types';
 import { resizeImage } from '../lib/imageResizer';
 import { uploadImage } from '../lib/wardrobeStorage';
 import { supabase } from '../lib/supabase';
+import { useWardrobe } from '../hooks/useWardrobe';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 interface AddItemModalProps {
     onClose: () => void;
@@ -11,6 +12,8 @@ interface AddItemModalProps {
 }
 
 export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
+    const { wardrobe } = useWardrobe();
+    const { profile } = useUserProfile();
     const [name, setName] = useState('');
     const [category, setCategory] = useState<Category>(Categories.TOP);
     const [image, setImage] = useState<string>('');
@@ -18,7 +21,14 @@ export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
     const [isDragging, setIsDragging] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
+    const ITEM_LIMIT = 50;
+    const isOverLimit = !profile.isPro && wardrobe.length >= ITEM_LIMIT;
+
     const handleFile = async (file: File) => {
+        if (isOverLimit) {
+            alert(`Has alcanzado el límite de ${ITEM_LIMIT} prendas del plan gratuito. ¡Pásate a Pro para añadir piezas ilimitadas!`);
+            return;
+        }
         setIsProcessing(true);
         try {
             const reader = new FileReader();
@@ -54,12 +64,16 @@ export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
         if (e.dataTransfer.files?.[0]) {
             handleFile(e.dataTransfer.files[0]);
         }
-    }, []);
+    }, [isOverLimit]);
 
     const [isUploading, setIsUploading] = useState(false);
 
     const submit = async () => {
         if (!name || !image) return;
+        if (isOverLimit) {
+            alert('Límite alcanzado. Mejora tu cuenta para añadir más prendas.');
+            return;
+        }
         setIsUploading(true);
         try {
             let finalImage = image;

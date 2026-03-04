@@ -32,13 +32,19 @@ function base64ToFile(base64: string, filename: string): File {
     return new File([ab], filename, { type: mime });
 }
 
+import { resizeImage } from './imageResizer';
+
 /**
  * Uploads a base64 image to Supabase Storage and returns the public URL.
+ * Automatically resizes and compresses the image before upload.
  */
 export async function uploadImage(base64Image: string, userId: string): Promise<string> {
-    const ext = base64Image.startsWith('data:image/png') ? 'png' : 'jpg';
+    // Optimize image (resize to max 1200px, 70% quality)
+    const optimizedBase64 = await resizeImage(base64Image, 1200, 1200, 0.7);
+
+    const ext = optimizedBase64.startsWith('data:image/png') ? 'png' : 'jpg';
     const filename = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-    const file = base64ToFile(base64Image, filename);
+    const file = base64ToFile(optimizedBase64, filename);
 
     const { error } = await supabase.storage
         .from(IMAGE_BUCKET)
@@ -230,6 +236,7 @@ export async function loadUserProfile(): Promise<UserProfile> {
                 age: data.age ?? undefined,
                 weight: data.weight ?? undefined,
                 height: data.height ?? undefined,
+                isPro: data.is_pro ?? false,
             };
         }
     }
@@ -256,6 +263,7 @@ export async function saveUserProfile(profile: UserProfile): Promise<void> {
                 age: profile.age || null,
                 weight: profile.weight || null,
                 height: profile.height || null,
+                is_pro: profile.isPro ?? false,
             }, { onConflict: 'user_id' });
         if (error) {
             console.error('Error saving profile to Supabase:', error);
