@@ -39,20 +39,20 @@ const PlannerDayCard = memo(({ day, items, onEdit, onView }: {
                     )}
                 </div>
             </div>
-            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex gap-2">
                 {items.length > 0 && (
                     <button
                         onClick={() => onView(day)}
                         className="text-[10px] font-black uppercase tracking-widest bg-zinc-100 px-6 py-3 rounded-full hover:bg-black hover:text-white transition-all"
                     >
-                        Ver
+                        VER
                     </button>
                 )}
                 <button
                     onClick={() => onEdit(day)}
                     className="text-[10px] font-black uppercase tracking-widest bg-white px-6 py-3 rounded-full shadow-sm hover:bg-zinc-50 transition-all border border-zinc-100"
                 >
-                    Editar
+                    EDITAR
                 </button>
             </div>
         </div>
