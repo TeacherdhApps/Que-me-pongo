@@ -2,6 +2,7 @@
 import { useState, memo } from 'react';
 import { useWeeklyPlan } from '../hooks/useWardrobe';
 import { OutfitEditor } from './OutfitEditor';
+import { OutfitPreview } from './OutfitPreview';
 import type { ClothingItem } from '../types';
 
 interface DayInfo {
@@ -10,7 +11,12 @@ interface DayInfo {
     displayDate: string;
 }
 
-const PlannerDayCard = memo(({ day, items, onEdit }: { day: DayInfo; items: ClothingItem[]; onEdit: (day: DayInfo) => void }) => {
+const PlannerDayCard = memo(({ day, items, onEdit, onView }: {
+    day: DayInfo;
+    items: ClothingItem[];
+    onEdit: (day: DayInfo) => void;
+    onView: (day: DayInfo) => void;
+}) => {
     return (
         <div className="bg-zinc-50 rounded-[2rem] p-8 flex items-center justify-between group hover:bg-zinc-100 transition-colors animate-fade">
             <div className="flex items-center gap-12">
@@ -33,12 +39,22 @@ const PlannerDayCard = memo(({ day, items, onEdit }: { day: DayInfo; items: Clot
                     )}
                 </div>
             </div>
-            <button
-                onClick={() => onEdit(day)}
-                className="text-[10px] font-black uppercase tracking-widest bg-white px-6 py-3 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-                Editar
-            </button>
+            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {items.length > 0 && (
+                    <button
+                        onClick={() => onView(day)}
+                        className="text-[10px] font-black uppercase tracking-widest bg-zinc-100 px-6 py-3 rounded-full hover:bg-black hover:text-white transition-all"
+                    >
+                        Ver
+                    </button>
+                )}
+                <button
+                    onClick={() => onEdit(day)}
+                    className="text-[10px] font-black uppercase tracking-widest bg-white px-6 py-3 rounded-full shadow-sm hover:bg-zinc-50 transition-all border border-zinc-100"
+                >
+                    Editar
+                </button>
+            </div>
         </div>
     );
 });
@@ -70,6 +86,7 @@ export function WeeklyPlanner({ onViewChange }: { onViewChange: (view: 'week' | 
     const { plan, isLoading, updateDay } = useWeeklyPlan();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [editingDay, setEditingDay] = useState<DayInfo | null>(null);
+    const [viewingDay, setViewingDay] = useState<DayInfo | null>(null);
 
     const formatDateKey = (date: Date) => {
         const y = date.getFullYear();
@@ -151,6 +168,7 @@ export function WeeklyPlanner({ onViewChange }: { onViewChange: (view: 'week' | 
                             day={day}
                             items={plan[day.date]?.items || []}
                             onEdit={setEditingDay}
+                            onView={setViewingDay}
                         />
                     ))}
                 </div>
@@ -162,6 +180,14 @@ export function WeeklyPlanner({ onViewChange }: { onViewChange: (view: 'week' | 
                     plan={plan}
                     updateDay={updateDay}
                     onClose={() => setEditingDay(null)}
+                />
+            )}
+            {viewingDay && (
+                <OutfitPreview
+                    items={plan[viewingDay.date]?.items || []}
+                    onClose={() => setViewingDay(null)}
+                    dayName={viewingDay.name}
+                    dateDisplay={viewingDay.displayDate}
                 />
             )}
         </div>

@@ -151,7 +151,7 @@ export function SettingsView() {
                             )}
                         </div>
                         <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">
-                            {wardrobe.length} de {profile.isPro ? '∞' : '50'} prendas utilizadas
+                            {wardrobe.length} de {profile.isPro ? '∞' : '100'} prendas utilizadas
                         </p>
                     </div>
 
@@ -180,8 +180,8 @@ export function SettingsView() {
 
                 <div className="mt-10 h-3 w-full bg-zinc-100 rounded-full overflow-hidden">
                     <div
-                        className={`h-full transition-all duration-1000 ${profile.isPro ? 'bg-amber-500' : (wardrobe.length / 50 > 0.9 ? 'bg-red-500' : 'bg-black')}`}
-                        style={{ width: profile.isPro ? '100%' : `${Math.min((wardrobe.length / 50) * 100, 100)}%` }}
+                        className={`h-full transition-all duration-1000 ${profile.isPro ? 'bg-amber-500' : (wardrobe.length / 100 > 0.9 ? 'bg-red-500' : 'bg-black')}`}
+                        style={{ width: profile.isPro ? '100%' : `${Math.min((wardrobe.length / 100) * 100, 100)}%` }}
                     ></div>
                 </div>
             </div>

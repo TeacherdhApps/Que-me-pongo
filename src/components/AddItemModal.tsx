@@ -21,7 +21,7 @@ export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
     const [isDragging, setIsDragging] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
-    const ITEM_LIMIT = 50;
+    const ITEM_LIMIT = 100;
     const isOverLimit = !profile.isPro && wardrobe.length >= ITEM_LIMIT;
 
     const handleFile = async (file: File) => {
