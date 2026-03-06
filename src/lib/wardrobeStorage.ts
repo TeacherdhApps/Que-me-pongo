@@ -1,11 +1,8 @@
 
-import { get, set } from 'idb-keyval';
+import { db } from './db';
 import { supabase } from './supabase';
 import type { ClothingItem, WeeklyPlan, UserProfile } from '../types';
 
-const WARDROBE_KEY = 'que-me-pongo:wardrobe';
-const WEEKLY_PLAN_KEY = 'que-me-pongo:weekly-plan';
-const USER_PROFILE_KEY = 'que-me-pongo:user-profile';
 const IMAGE_BUCKET = 'wardrobe-images';
 
 // --- Helpers ---
@@ -94,23 +91,19 @@ export async function loadWardrobe(): Promise<ClothingItem[]> {
         return data as ClothingItem[];
     }
 
-    // LocalStorage/IndexedDB Fallback
+    // Dexie Fallback
     try {
-        let raw = await get<string>(WARDROBE_KEY);
-        if (raw) return JSON.parse(raw);
+        const localItems = await db.wardrobe.toArray();
+        if (localItems.length > 0) return localItems;
 
         // Migrate from localStorage if needed
-        const fallback = localStorage.getItem(WARDROBE_KEY);
-        if (!fallback) {
-            const legacy = localStorage.getItem('cc_items');
-            if (legacy) {
-                await set(WARDROBE_KEY, legacy);
-                return JSON.parse(legacy);
-            }
-        }
-        if (fallback) {
-            await set(WARDROBE_KEY, fallback);
-            return JSON.parse(fallback);
+        let raw = localStorage.getItem('que-me-pongo:wardrobe');
+        if (!raw) raw = localStorage.getItem('cc_items');
+
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            await db.wardrobe.bulkAdd(parsed);
+            return parsed;
         }
         return [];
     } catch {
@@ -132,14 +125,20 @@ export async function addClothingItem(item: Omit<ClothingItem, 'id'>): Promise<C
         return data as ClothingItem;
     }
 
-    // LocalStorage
+    // Dexie Storage
     const newItem: ClothingItem = {
         ...item,
         id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        created_at: new Date().toISOString()
     };
-    const wardrobe = await loadWardrobe();
-    const updated = [...wardrobe, newItem];
-    await set(WARDROBE_KEY, JSON.stringify(updated));
+    try {
+        await db.wardrobe.add(newItem);
+    } catch (error: any) {
+        if (error.name === 'QuotaExceededError') {
+            throw error;
+        }
+        throw error;
+    }
     return newItem;
 }
 
@@ -155,10 +154,15 @@ export async function updateClothingItem(id: string, updates: Partial<ClothingIt
         return;
     }
 
-    // LocalStorage
-    const wardrobe = await loadWardrobe();
-    const updated = wardrobe.map(item => item.id === id ? { ...item, ...updates } : item);
-    await set(WARDROBE_KEY, JSON.stringify(updated));
+    // Dexie Storage
+    try {
+        await db.wardrobe.update(id, updates);
+    } catch (error: any) {
+        if (error.name === 'QuotaExceededError') {
+            throw error;
+        }
+        throw error;
+    }
 }
 
 export async function deleteClothingItem(id: string, imageUrl?: string): Promise<boolean> {
@@ -194,13 +198,12 @@ export async function deleteClothingItem(id: string, imageUrl?: string): Promise
         return true;
     }
 
-    // LocalStorage
+    // Dexie Storage
     console.log(`Deleting local item ${id}`);
-    const wardrobe = await loadWardrobe();
-    const filtered = wardrobe.filter(item => item.id !== id);
-    const itemExists = wardrobe.length !== filtered.length;
-    await set(WARDROBE_KEY, JSON.stringify(filtered));
-    return itemExists;
+    const exists = await db.wardrobe.get(id);
+    if (!exists) return false;
+    await db.wardrobe.delete(id);
+    return true;
 }
 
 // --- Weekly Plan ---
@@ -221,16 +224,17 @@ export async function loadWeeklyPlan(): Promise<WeeklyPlan> {
         return data?.plan_data || {};
     }
 
-    // Local Fallback
+    // Dexie Fallback
     try {
-        let raw = await get<string>(WEEKLY_PLAN_KEY);
-        if (raw) return JSON.parse(raw);
+        let record = await db.plans.get('weekly-plan');
+        if (record) return record.plan_data;
 
         // Migrate from localStorage
-        const fallback = localStorage.getItem(WEEKLY_PLAN_KEY);
+        const fallback = localStorage.getItem('que-me-pongo:weekly-plan');
         if (fallback) {
-            await set(WEEKLY_PLAN_KEY, fallback);
-            return JSON.parse(fallback);
+            const parsed = JSON.parse(fallback);
+            await db.plans.put({ id: 'weekly-plan', plan_data: parsed });
+            return parsed;
         }
         return {};
     } catch {
@@ -249,7 +253,14 @@ export async function saveWeeklyPlan(plan: WeeklyPlan): Promise<void> {
         return;
     }
 
-    await set(WEEKLY_PLAN_KEY, JSON.stringify(plan));
+    try {
+        await db.plans.put({ id: 'weekly-plan', plan_data: plan });
+    } catch (error: any) {
+        if (error.name === 'QuotaExceededError') {
+            throw error;
+        }
+        throw error;
+    }
 }
 
 // --- User Profile ---
@@ -279,16 +290,17 @@ export async function loadUserProfile(): Promise<UserProfile> {
         }
     }
 
-    // LocalStorage fallback
+    // Dexie Fallback
     try {
-        let raw = await get<string>(USER_PROFILE_KEY);
-        if (raw) return JSON.parse(raw);
+        let record = await db.profiles.get('user-profile');
+        if (record) return record.profile_data;
 
         // Migrate from localStorage
-        const fallback = localStorage.getItem(USER_PROFILE_KEY);
+        const fallback = localStorage.getItem('que-me-pongo:user-profile');
         if (fallback) {
-            await set(USER_PROFILE_KEY, fallback);
-            return JSON.parse(fallback);
+            const parsed = JSON.parse(fallback);
+            await db.profiles.put({ id: 'user-profile', profile_data: parsed });
+            return parsed;
         }
         return {};
     } catch {
@@ -317,7 +329,14 @@ export async function saveUserProfile(profile: UserProfile): Promise<void> {
         return;
     }
 
-    await set(USER_PROFILE_KEY, JSON.stringify(profile));
+    try {
+        await db.profiles.put({ id: 'user-profile', profile_data: profile });
+    } catch (error: any) {
+        if (error.name === 'QuotaExceededError') {
+            throw error;
+        }
+        throw error;
+    }
 }
 
 // --- Export / Import ---
@@ -363,9 +382,9 @@ export async function importAllData(jsonString: string): Promise<void> {
             await saveUserProfile(data.userProfile);
         }
     } else {
-        // Import to IndexedDB
-        if (data.wardrobe) await set(WARDROBE_KEY, JSON.stringify(data.wardrobe));
-        if (data.weeklyPlan) await set(WEEKLY_PLAN_KEY, JSON.stringify(data.weeklyPlan));
-        if (data.userProfile) await set(USER_PROFILE_KEY, JSON.stringify(data.userProfile));
+        // Import to Dexie
+        if (data.wardrobe) await db.wardrobe.bulkPut(data.wardrobe);
+        if (data.weeklyPlan) await db.plans.put({ id: 'weekly-plan', plan_data: data.weeklyPlan });
+        if (data.userProfile) await db.profiles.put({ id: 'user-profile', profile_data: data.userProfile });
     }
 }

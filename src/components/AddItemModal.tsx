@@ -5,6 +5,7 @@ import { uploadImage } from '../lib/wardrobeStorage';
 import { supabase } from '../lib/supabase';
 import { useWardrobe } from '../hooks/useWardrobe';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { processBackgroundRemoval, blobToBase64 } from '../lib/backgroundRemoval';
 
 interface AddItemModalProps {
     onClose: () => void;
@@ -18,8 +19,11 @@ export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
     const [category, setCategory] = useState<Category>(Categories.TOP);
     const [image, setImage] = useState<string>('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isRemovingBackground, setIsRemovingBackground] = useState(false);
+    const [removeBG, setRemoveBG] = useState(true);
     const [isDragging, setIsDragging] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
+    const cameraRef = useRef<HTMLInputElement>(null);
 
     const ITEM_LIMIT = 100;
     const isOverLimit = !profile.isPro && wardrobe.length >= ITEM_LIMIT;
@@ -37,8 +41,24 @@ export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
                 reader.readAsDataURL(file);
             });
 
+
+            let processedImage = rawBase64;
+
+            if (removeBG) {
+                setIsRemovingBackground(true);
+                try {
+                    const blob = await processBackgroundRemoval(file);
+                    processedImage = await blobToBase64(blob);
+                } catch (bgErr) {
+                    console.error('BG removal failed, falling back to original:', bgErr);
+                    // Fallback to original image if BG removal fails
+                } finally {
+                    setIsRemovingBackground(false);
+                }
+            }
+
             // Resize and compress to 800px max, 70% quality
-            const compressed = await resizeImage(rawBase64, 800, 800, 0.7);
+            const compressed = await resizeImage(processedImage, 800, 800, 0.7);
             setImage(compressed);
         } catch (err) {
             console.error('Error processing image:', err);
@@ -92,9 +112,13 @@ export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
                 tags: []
             });
             onClose();
-        } catch (err) {
-            console.error('Error uploading image:', err);
-            alert('Error al subir la imagen. Intenta de nuevo.');
+        } catch (err: any) {
+            if (err.name === 'QuotaExceededError') {
+                alert('El almacenamiento local está lleno. No se puede guardar la prenda.');
+            } else {
+                console.error('Error uploading image:', err);
+                alert('Error al subir la imagen. Intenta de nuevo.');
+            }
         } finally {
             setIsUploading(false);
         }
@@ -111,15 +135,15 @@ export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
                 </div>
 
                 <div
-                    onClick={() => !isProcessing && fileRef.current?.click()}
                     onDragOver={onDragOver}
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
                     className={`
-            aspect-square rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer overflow-hidden transition-all
-            ${isDragging ? 'border-black bg-zinc-50 scale-105' : 'border-zinc-200 bg-zinc-50/50 hover:border-zinc-300'}
-            ${image && !isProcessing ? 'border-none' : ''}
+            aspect-square rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center overflow-hidden transition-all
+            ${isDragging ? 'border-black bg-zinc-50 scale-105' : 'border-zinc-200 bg-zinc-50/50'}
+            ${image && !isProcessing ? 'border-none cursor-pointer' : ''}
           `}
+                    onClick={() => image && !isProcessing && fileRef.current?.click()}
                 >
                     {isProcessing ? (
                         <div className="flex flex-col items-center gap-3">
@@ -134,21 +158,59 @@ export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center space-y-4 p-8">
+                        <div className="text-center space-y-6 p-8 w-full">
                             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm">
-                                <i className="fas fa-camera text-2xl text-zinc-300"></i>
+                                <i className="fas fa-image text-2xl text-zinc-300"></i>
                             </div>
-                            <div>
-                                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">Arrastra una imagen aquí</p>
-                                <p className="text-[10px] text-zinc-400 mt-1">o haz click para buscar</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                                Arrastra una imagen aquí
+                            </p>
+                            <div className="flex gap-3 justify-center">
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+                                    className="px-5 py-3 bg-black text-white rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md flex items-center gap-2"
+                                >
+                                    <i className="fas fa-folder-open"></i> Buscar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); cameraRef.current?.click(); }}
+                                    className="px-5 py-3 bg-white border-2 border-black text-black rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-md flex items-center gap-2"
+                                >
+                                    <i className="fas fa-camera"></i> Tomar Foto
+                                </button>
                             </div>
                         </div>
                     )}
                 </div>
+
+                {/* Background Removal Toggle */}
+                <div className="flex items-center justify-between px-6 py-4 bg-zinc-50 rounded-3xl border border-zinc-100">
+                    <div className="flex items-center gap-3">
+                        <i className="fas fa-magic text-zinc-400 text-[10px]"></i>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest leading-none">Quitar Fondo AI</p>
+                            <p className="text-[8px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Acabado de catálogo</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setRemoveBG(!removeBG)}
+                        className={`w-12 h-6 rounded-full transition-all relative ${removeBG ? 'bg-black' : 'bg-zinc-200'}`}
+                    >
+                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${removeBG ? 'left-7' : 'left-1'}`}></div>
+                    </button>
+                </div>
+
                 <input type="file" ref={fileRef} className="hidden" accept="image/*" onChange={e => {
                     if (e.target.files?.[0]) {
                         handleFile(e.target.files[0]);
-                        // Reset input so the same file can be selected again if needed
+                        e.target.value = '';
+                    }
+                }} />
+                <input type="file" ref={cameraRef} className="hidden" accept="image/*" capture="environment" onChange={e => {
+                    if (e.target.files?.[0]) {
+                        handleFile(e.target.files[0]);
                         e.target.value = '';
                     }
                 }} />
@@ -184,10 +246,10 @@ export function AddItemModal({ onClose, onAdd }: AddItemModalProps) {
 
                 <button
                     onClick={submit}
-                    disabled={!name || !image || isProcessing || isUploading}
+                    disabled={!name || !image || isProcessing || isUploading || isRemovingBackground}
                     className="w-full py-5 bg-black text-white rounded-full text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isProcessing ? 'Procesando...' : isUploading ? 'Subiendo...' : 'Guardar Pieza'}
+                    {isRemovingBackground ? 'Eliminando fondo...' : isProcessing ? 'Procesando...' : isUploading ? 'Subiendo...' : 'Guardar Pieza'}
                 </button>
             </div>
         </div>

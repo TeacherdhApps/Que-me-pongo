@@ -15,6 +15,8 @@ export interface ClothingItem {
   color: string;       // e.g., "blanco", "azul marino"
   image: string;       // base64 data URL or file path
   tags: string[];      // e.g., ["formal", "verano", "casual"]
+  created_at?: string;
+  user_id?: string;
 }
 
 export interface WeatherData {
