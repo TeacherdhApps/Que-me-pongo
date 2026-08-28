@@ -253,7 +253,7 @@ export function OutfitPreview({ outfit, onClose, onSave }: OutfitPreviewProps) {
                             {outfit.day} · {canvasItems.length} {t('outfit.garments')}
                         </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap justify-end gap-2">
                         <button 
                             onClick={downloadBoard}
                             disabled={isDownloading}
